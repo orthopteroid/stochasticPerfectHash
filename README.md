@@ -8,7 +8,7 @@ The program uses a stochastic method of adjusting the mixing table. I think ther
 When run, the program generates some random keys (seperated by !) and coughs up the mixtable that perfectly hashes those keys. You can change the code to make more or fewer keys or longer or shorted length. By trial, I've found that when you try to hash more keys you won't find a perfect hash but the code seems to work ok for keys of very long length.
 
 The output looks like:
-
+```
 Finding mix table for dckavdrgjr!zrwohicvzp!dblnuuoyoz!qtectzhkhq!dihbwrlbmk!qpmbeiysio!ubhyddzlpi!bvslypckqq!uifijlrjeb!xychyimzvd!:
 uint_8 mix[] = {26, 29, 3, 16, 2, 27, 17, 15, 12, 8, 1, 13, 0, 5, 21, 31, 7, 19, 18, 10, 14, 6, 4, 9, 23, 28, 24, 25, 11, 30, 20, 22, };
 Took 14066 iterations
@@ -39,3 +39,4 @@ Took 6161 iterations
 Finding mix table for whsltbsngd!dedghgigeq!abmjgsvyjs!fhzyusbnhh!smnxsxfcdm!tfnfpvzktk!ebrdzlxcye!jstwrntxqy!jleysturfn!blosopflrg!:
 uint_8 mix[] = {9, 17, 7, 2, 3, 15, 29, 23, 16, 24, 31, 14, 30, 8, 10, 28, 6, 27, 21, 19, 13, 12, 18, 25, 22, 11, 5, 4, 20, 0, 26, 1, };
 Took 2889 iterations
+```
