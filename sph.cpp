@@ -41,44 +41,19 @@ size_t calcMixTable( char* sz )
 	// they are used by the stochastic sampling method that adjusts the mixing table to resolve hash collisions
 	const uint8_t DEFAULT = 1;
 	const uint8_t SIGNAL = DEFAULT + 2;
-
-	// counts will track mix table usage each iteration we evaluate the hashed
-	uint8_t counts[32];
-	for( size_t i=0;i<32;i++ ) { counts[i] = DEFAULT; }
-
-	uint32_t check = 0;
-	for( size_t i=0;i<32;i++ ) { check += i; }
-
+	
 	// reset flags...
-	bool collision = false;
-	size_t iterations = 0 -1;
+	size_t iterations = 0;
 	do {
-		// next iteration!
-		iterations++;
-
-		// calc sum, swap items if needed then reset counts
-		uint32_t countsum = 0;
-		for( size_t i=0;i<32;i++ ) { countsum += counts[i]; }
-		if( countsum > 32 )
-		{
-			size_t i = sample( counts, countsum );
-			countsum -= counts[i]; counts[i] = 0; // remove item i from possible selection set
-
-			size_t j = sample( counts, countsum );
-
-			// swap
-			uint8_t t = mix[i]; mix[i] = mix[j]; mix[j] = t;
-		}
-
-		// reset the counts
-		for( size_t i=0;i<32;i++ ) { counts[i] = DEFAULT; }
+		// counts will track mix table usage each iteration we evaluate the hashed
+		uint8_t counts[32];
 		
-		// reset the collision flags
-		collision = false;
+		for( size_t i=0;i<32;i++ ) { counts[i] = DEFAULT; }
 		for( size_t i=0;i<keyCount;i++ ) { hashed[i] = false; }
 
 		// compute the pearson hash using the current mix table.
 		uint8_t hash = 0;
+		bool collision = false;
 		for( size_t i=0;sz[i];i++ )
 		{
 			if( sz[i] == '!' ) // end of key detected
@@ -95,14 +70,29 @@ size_t calcMixTable( char* sz )
 				counts[ j ] += SIGNAL; // inc the mix item that was used to compute the hashs this iteration.
 			}
 		}
+		if( !collision ) { break; }
+		
+		// calc sum and swap items
+		uint32_t countsum = 0;
+		for( size_t i=0;i<32;i++ ) { countsum += counts[i]; }
+		if( countsum > 32 )
+		{
+			size_t i = sample( counts, countsum );
+			countsum -= counts[i]; counts[i] = 0; // remove item i from possible selection set
 
-	} while( collision & iterations < MAXITER );
+			size_t j = sample( counts, countsum );
 
-	if( collision )
-		{ printf("ack! can't do it.\n"); }
-	else
+			// swap
+			uint8_t t = mix[i]; mix[i] = mix[j]; mix[j] = t;
+		}
+
+	} while( ++iterations < MAXITER );
+
+	if( iterations < MAXITER )
 		{ printf("uint_8 mix[] = {"); for( size_t i=0;i<32;i++ ) { printf("%d, ",mix[i]); } printf("};\n"); }
-
+	else
+		{ printf("ack! can't do it.\n"); }
+	
 	return iterations;
 }
 
@@ -132,6 +122,7 @@ int main()
 		size_t iter = calcMixTable( buf );
 		printf("Took %lu iterations\n",iter);
 	}
+
 
 	return 0;
 }
