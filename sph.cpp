@@ -84,7 +84,7 @@ size_t calcMixTable( char* sz )
 			if( sz[i] == '!' ) // end of key detected
 			{
 				size_t j = hash % keyCount; // mod with keyCount as we are trying to find the perfect hash function;
-				if( hashed[ j ] ) { collision = true; break; }
+				if( hashed[ j ] ) { collision = true; }
 				hashed[ j ] = true;
 				hash = 0;
 			}
