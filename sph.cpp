@@ -40,7 +40,7 @@ size_t calcMixTable( char* sz )
 	// these weights influence convergence rate.
 	// they are used by the stochastic sampling method that adjusts the mixing table to resolve hash collisions
 	const uint8_t DEFAULT = 1;
-	const uint8_t SIGNAL = 100;
+	const uint8_t SIGNAL = 0xFF;
 	
 	// reset flags...
 	size_t iterations = 0;
@@ -52,8 +52,8 @@ size_t calcMixTable( char* sz )
 		for( size_t i=0;i<keyCount;i++ ) { hashed[i] = false; }
 
 		// compute the pearson hash using the current mix table.
-		uint8_t hash = 0;
 		bool collision = false;
+		uint8_t hash = mix[ 31 & ( sz[0] - 'a' ) ]; // init using 1st char and mix table
 		for( size_t i=0;sz[i];i++ )
 		{
 			if( sz[i] == '!' ) // end of key detected
@@ -61,7 +61,7 @@ size_t calcMixTable( char* sz )
 				size_t j = hash % keyCount; // mod with keyCount as we are trying to find the perfect hash function;
 				if( hashed[ j ] ) { collision = true; }
 				hashed[ j ] = true;
-				hash = 0;
+				hash = mix[ 31 & ( sz[i+1] - 'a' ) ]; // init using 1st char and mix table
 			}
 			else
 			{
