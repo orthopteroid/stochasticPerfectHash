@@ -16,7 +16,7 @@
 // stochastic remainder sampler
 size_t sample( uint8_t* counts, uint32_t sum )
 {
-	int32_t target = rand() % sum;
+	int32_t target = (((int32_t)rand() << 20) + ((int32_t)rand() << 10) + (int32_t)rand()) % sum; // impl fix for short int rand()
 	size_t i = 0;
 	while( (target -= counts[ i ]) > 0 ) { i++; }
 	return i;
