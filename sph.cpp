@@ -75,16 +75,11 @@ size_t calcMixTable( char* sz )
 		// calc sum and swap items
 		uint32_t countsum = 0;
 		for( size_t i=0;i<32;i++ ) { countsum += counts[i]; }
-		if( countsum > 32 )
-		{
-			size_t i = sample( counts, countsum );
-			countsum -= counts[i]; counts[i] = 0; // remove item i from possible selection set
-
-			size_t j = sample( counts, countsum );
-
-			// swap
-			uint8_t t = mix[i]; mix[i] = mix[j]; mix[j] = t;
-		}
+		
+		size_t i = sample( counts, countsum );				// select item i.
+		countsum -= counts[i]; counts[i] = 0;				// remove from possible selection set
+		size_t j = sample( counts, countsum );				// select item j
+		uint8_t t = mix[i]; mix[i] = mix[j]; mix[j] = t;	// swap i and j
 
 	} while( ++iterations < MAXITER );
 
