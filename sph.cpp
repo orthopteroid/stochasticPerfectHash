@@ -40,7 +40,7 @@ size_t calcMixTable( char* sz )
 	// these weights influence convergence rate.
 	// they are used by the stochastic sampling method that adjusts the mixing table to resolve hash collisions
 	const uint8_t DEFAULT = 1;
-	const uint8_t SIGNAL = DEFAULT + 2;
+	const uint8_t SIGNAL = 100;
 	
 	// reset flags...
 	size_t iterations = 0;
@@ -67,7 +67,7 @@ size_t calcMixTable( char* sz )
 			{
 				uint8_t j = 31 & ( hash ^ ( sz[i] - 'a' ) );
 				hash = mix[ j ];
-				counts[ j ] += SIGNAL; // inc the mix item that was used to compute the hashs this iteration.
+				counts[ j ] = SIGNAL; // inc the mix item that was used to compute the hashs this iteration.
 			}
 		}
 		if( !collision ) { break; }
