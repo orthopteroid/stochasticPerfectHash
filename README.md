@@ -5,38 +5,39 @@ This is just a small demo app - it has no options or interface. If you compile a
 
 The program uses a stochastic method of adjusting the mixing table. I think there might be a poly-time algorithim for finding the mixtable, so if you are at all interested in something more reliable look elsewhere perhaps.
 
-When run, the program generates some random keys (seperated by !) and coughs up the mixtable that perfectly hashes those keys. You can change the code to make more or fewer keys or longer or shorted length. By trial, I've found that when you try to hash more keys you won't find a perfect hash but the code seems to work ok for keys of very long length.
+When run, the program generates some random keys (seperated by !) and coughs up the mixtable that perfectly hashes those keys. You can change the code to make more or fewer keys or longer or shorted length. If you're unable to hash a large set of long keys try making the table bigger - but note that a larger type will be needed for larger tables.
 
 The output looks like:
 ```
-Finding mix table for dckavdrgjr!zrwohicvzp!dblnuuoyoz!qtectzhkhq!dihbwrlbmk!qpmbeiysio!ubhyddzlpi!bvslypckqq!uifijlrjeb!xychyimzvd!:
-uint_8 mix[] = {26, 29, 3, 16, 2, 27, 17, 15, 12, 8, 1, 13, 0, 5, 21, 31, 7, 19, 18, 10, 14, 6, 4, 9, 23, 28, 24, 25, 11, 30, 20, 22, };
-Took 14066 iterations
-Finding mix table for baxfpodtpf!xyrprkzwqa!ooiddbtxvn!mxnjceyiap!nxoeohrodh!quwyxbbsyx!fkuuwybwgb!ltabaqjrem!avgyvfzxzz!ugmqdioeex!:
-uint_8 mix[] = {28, 3, 24, 31, 10, 25, 20, 16, 6, 5, 2, 21, 13, 8, 14, 12, 4, 11, 7, 26, 18, 17, 30, 9, 15, 19, 23, 22, 1, 29, 27, 0, };
-Took 2218 iterations
-Finding mix table for lpdvbntudd!glsrwcaahy!vlbibfjnzz!nkqqhrebnj!gvwbmsdntm!nqxoyzwjov!kbfcsnvyoi!hwfdxsxchq!pugolgnhpd!cbfhdzuyxk!:
-uint_8 mix[] = {18, 12, 3, 2, 29, 0, 26, 27, 4, 10, 23, 9, 17, 24, 8, 31, 1, 11, 25, 5, 6, 21, 13, 19, 22, 30, 7, 15, 28, 14, 16, 20, };
-Took 833 iterations
-Finding mix table for ahsxagelch!niivwukfnd!xkggzwgpla!elhxkjfquh!xhqifoepur!urbazdzfsm!fyxoxjycas!mzcejhsnyo!hsgkvfnulh!gsgfjdojiq!:
-uint_8 mix[] = {11, 29, 28, 24, 25, 14, 18, 30, 31, 21, 27, 17, 26, 15, 4, 13, 10, 12, 5, 2, 1, 0, 7, 9, 19, 8, 6, 22, 23, 16, 3, 20, };
-Took 3013 iterations
-Finding mix table for nhquhrbhca!ajzlzzrftf!gjxkajhtaf!hnmxjvomdt!mdenqdmjkh!qqqocsxklx!rtmgsxbjjg!cxlglblzmv!hdnzrqsqcf!ptadbtafcl!:
-uint_8 mix[] = {14, 4, 26, 22, 18, 13, 9, 3, 28, 23, 10, 24, 1, 16, 2, 11, 7, 20, 25, 12, 31, 19, 29, 27, 15, 5, 6, 21, 0, 17, 30, 8, };
-Took 122 iterations
-Finding mix table for qjnfzvfqfh!wzgosgtckk!odwsoxfqhi!xxulctijjp!shobvijrlt!dzwbtmybch!lcefpiyzrj!omqfnonwfa!pibnlvbjwf!rjhxpyipxz!:
-uint_8 mix[] = {15, 9, 27, 6, 3, 29, 2, 18, 23, 11, 24, 30, 25, 5, 21, 13, 26, 12, 14, 22, 17, 10, 4, 16, 8, 31, 0, 7, 20, 19, 28, 1, };
-Took 2984 iterations
-Finding mix table for vlfkoyxdix!qeakkvdjkt!fqewgselyu!atffdvfdyn!aqudaeyfni!avyergwwsw!ssqzzvueau!rbmlgoretf!puapatwzro!vlinkhlgll!:
-uint_8 mix[] = {6, 11, 16, 12, 7, 17, 3, 31, 27, 19, 14, 1, 9, 18, 28, 0, 21, 13, 25, 26, 30, 29, 4, 23, 2, 22, 24, 20, 10, 5, 8, 15, };
-Took 2513 iterations
-Finding mix table for vhjixohxdl!wcbekmnoli!rmlxbxuelh!miqvsqlcnr!njvpphbcvo!lobylexgji!pxsiumyiol!zcwwtldwoy!kbmnzaswid!gzaahwmfed!:
-uint_8 mix[] = {2, 25, 23, 19, 6, 12, 3, 30, 5, 1, 27, 20, 14, 26, 10, 21, 31, 18, 22, 28, 11, 7, 24, 15, 16, 4, 0, 17, 9, 29, 8, 13, };
-Took 935 iterations
-Finding mix table for udxgiqagcu!lellcewvku!jimddnmdqx!inagtlyvtd!qghbrliphs!jscxvfnjjf!hrshzluyjo!bzukcoykdh!fpzhownbfy!hmrbwrpqry!:
-uint_8 mix[] = {8, 18, 1, 19, 29, 27, 10, 14, 23, 26, 13, 22, 25, 4, 24, 0, 28, 16, 31, 7, 5, 9, 3, 11, 30, 2, 15, 12, 17, 6, 21, 20, };
-Took 6161 iterations
-Finding mix table for whsltbsngd!dedghgigeq!abmjgsvyjs!fhzyusbnhh!smnxsxfcdm!tfnfpvzktk!ebrdzlxcye!jstwrntxqy!jleysturfn!blosopflrg!:
-uint_8 mix[] = {9, 17, 7, 2, 3, 15, 29, 23, 16, 24, 31, 14, 30, 8, 10, 28, 6, 27, 21, 19, 13, 12, 18, 25, 22, 11, 5, 4, 20, 0, 26, 1, };
-Took 2889 iterations
+Generating 10 keys of length 10. Hashing into 35 element table
+Finding mix table for eyykxasvss!dsggyqlvwl!bxmgywmdoy!yswwftyzrq!rukzciqneo!zhnnnnmaqa!youwmbsmcj!evfovkxnxd!bykqoadaat!cakywyaone!:
+uint16_t mix[] = {33, 5, 29, 30, 11, 4, 32, 1, 24, 10, 19, 18, 9, 2, 21, 26, 28, 27, 0, 16, 20, 6, 14, 34, 31, 7, 23, 15, 12, 25, 17, 22, 13, 8, 3, };
+Took 6 iterations
+Finding mix table for qnljzgoqox!sksyygtdfc!uhgpyotbtq!bjgmuhuixk!hsucqvkjar!mvzumxlfae!xbpfpjpkuo!wdgrfxorio!jwjkrxjcek!iclxjbiane!:
+uint16_t mix[] = {18, 1, 2, 3, 23, 26, 13, 28, 8, 5, 21, 15, 31, 16, 17, 29, 33, 34, 0, 6, 32, 27, 22, 4, 14, 24, 12, 9, 19, 25, 11, 7, 20, 10, 30, };
+Took 0 iterations
+Finding mix table for txtkfcfjbn!mvrwrenvds!ndrhotcnnv!sguoszqzis!nxpgvglidq!cswvamrcze!zuntihsahd!uwcjcxrphw!ijpggpsxtr!cvnrovyjyh!:
+uint16_t mix[] = {5, 28, 16, 3, 0, 22, 6, 23, 8, 14, 13, 10, 1, 9, 32, 15, 29, 17, 18, 2, 24, 21, 30, 7, 11, 25, 20, 27, 34, 19, 4, 12, 26, 33, 31, };
+Took 0 iterations
+Finding mix table for cymqmdulwk!wmaxvhflcv!rhxdvsnrtg!zvgnosskeq!ucexbaeinh!dfqaklvyeo!efmluafmmj!ejnjgrlmzy!vdfofqzcqg!rwnfjihpwt!:
+ack! can't do it.
+Took 1000000 iterations
+Finding mix table for keeonuptmi!kxumyijrgr!zwpysumvay!xncbbpxskl!cuiwiigrbo!lalaadumaw!kzloanfzhp!kkmuiucpod!dzgqzgwvtw!tfwfuyuzyb!:
+uint16_t mix[] = {6, 34, 19, 3, 25, 1, 7, 10, 12, 14, 2, 15, 5, 13, 29, 9, 8, 11, 4, 26, 20, 28, 30, 31, 18, 27, 16, 22, 24, 17, 23, 0, 32, 33, 21, };
+Took 0 iterations
+Finding mix table for qwnerkyzhw!uarrvjxmwi!ccyfnfcgzt!rrpfxirwky!uealwxwvls!govetklxqm!rigipdtgbd!hvhjifhfbs!xjgupcfabx!puhvdwywfc!:
+uint16_t mix[] = {19, 32, 9, 34, 0, 15, 30, 14, 8, 18, 12, 22, 2, 5, 11, 6, 7, 21, 3, 27, 20, 23, 10, 4, 31, 25, 28, 26, 13, 29, 24, 1, 17, 33, 16, };
+Took 3 iterations
+Finding mix table for ycyvhkilbp!hfwekrsovv!yomymywouh!islipssafw!rnbntnelez!hcqtccuatq!hdkumcogcu!cvhfiatooz!pvbfqfimhd!cogpksrybv!:
+uint16_t mix[] = {29, 11, 2, 3, 14, 19, 33, 13, 16, 24, 31, 12, 15, 28, 25, 0, 17, 22, 30, 8, 26, 10, 27, 18, 7, 20, 1, 9, 23, 6, 5, 21, 32, 34, 4, };
+Took 2 iterations
+Finding mix table for wsrkwnjdox!yznvhwsdac!kezddwtcup!fsjycfllia!kizygiuaou!caadeezzgt!qnlalqhwds!yoaymgiigy!ekzenfkmes!hwfvwslepo!:
+uint16_t mix[] = {16, 22, 10, 3, 1, 11, 31, 24, 6, 27, 15, 13, 0, 32, 23, 7, 2, 5, 30, 14, 19, 9, 17, 18, 34, 4, 26, 21, 28, 25, 20, 8, 33, 29, 12, };
+Took 2 iterations
+Finding mix table for ihjsoulelu!nejwljqrcf!dzqzvrpofp!lpxujlqxsc!rhiddvotms!aprqopkgdr!vojuksibra!flhnokjefx!xinqadfkjk!chyldlflmz!:
+uint16_t mix[] = {22, 24, 29, 18, 21, 4, 6, 30, 3, 34, 7, 20, 10, 26, 12, 32, 5, 14, 16, 28, 9, 1, 23, 8, 31, 11, 2, 33, 19, 15, 0, 17, 27, 13, 25, };
+Took 7 iterations
+Finding mix table for xfrcicrwoe!oizziiegaj!ygzpnabfmj!ljqcnyghwx!llflmpvqwv!buccjrcnyq!wjcmopkuwh!rkuyviqsao!obksdvliij!ygtauhshdq!:
+uint16_t mix[] = {1, 4, 2, 33, 15, 17, 19, 20, 8, 23, 11, 27, 6, 9, 34, 10, 26, 24, 31, 7, 5, 16, 12, 0, 30, 28, 21, 22, 3, 14, 25, 32, 13, 18, 29, };
+Took 1 iterations
 ```
