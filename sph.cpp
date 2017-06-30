@@ -129,7 +129,7 @@ int main()
 
     const int keyCount = 10;
     const int keyLength = 10;
-    const int tableSize = 256;
+    const int tableSize = 35;
     using tableType = uint8_t;
     printf("Generating %d keys of length %d. Hashing into %d element table\n", keyCount, keyLength, tableSize);
 
