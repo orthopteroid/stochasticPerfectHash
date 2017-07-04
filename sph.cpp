@@ -6,151 +6,233 @@
 #include <math.h>
 #include <utility>
 #include <algorithm>
+#include <iostream>
+
+using namespace std;
 
 // stochasticPerfectHash
-// Uses stochastic remainder sampling to derive a Pearson mixing table for small sets of alphabetic keys
+// Uses codetable randomization to derive a Pearson mixing table for sets of alphabetic keys
 // orthopteroid@gmail.com
 // g++ -std=c++0x -O3 -lrt sph.cpp -o sph
 //
 // for background, read:
 // http://cs.mwsu.edu/~griffin/courses/2133/downloads/Spring11/p677-pearson.pdf
 
-// stochastic remainder sampler
-template<class TableType>
-int sample( TableType* counts, int sum )
+// given the lowercase string and the codeTable, compute the pearson hash
+template<class CodeType>
+int ph_lowercase(const char *keyword, CodeType *codeTable, uint CodeCount)
 {
-    int32_t target = (int32_t)rand() % sum;
-    size_t i = 0;
-    while( (target -= counts[ i ]) > 0 ) { i++; }
-    return i;
-}
-
-template<class TableType, int TableSize>
-int sum( TableType* counts )
-{
-    uint32_t sum = 0;
-    for( size_t i=0;i<TableSize;i++ )
-    {
-        sum += counts[i];
+    int hash = codeTable[ keyword[0] - 'a' ]; // char 0
+    for(uint i=1; keyword[i]; i++) { // chars 1 ... N
+        hash = codeTable[ (hash ^ (keyword[i] - 'a')) % CodeCount ];
     }
-    return sum;
+    return hash;
 }
 
-// calculates a mixtable for the pearson hash to create a perfect hash.
-// keys can only be mixed-case, but can be of any length.
-// keys are seperated in the input string using the ! delimiter. ! must also be at end of string.
-template<class TableType, int TableSize>
-size_t calcMixTable( char* sz )
+// given the lowercase string, the codeTable and a char-mark-table, compute the pearson hash
+template<class CodeType>
+int ph_lowercase(const char *keyword, const vector<CodeType> codeTable)
 {
-	const size_t MAXITER = 1000000;
-
-    // special marker '!' in the string designates the end of a key
-    int keyCount = 0;
-    for( size_t i=0;sz[i];i++ ) { if( sz[i] == '!' ) { keyCount++; } }
-
-    TableType usedKeyHash[TableSize]; // to mark key-hashes used
-    TableType usedCode[TableSize], notUsedCode[TableSize]; // to mark ascii codes used
-    TableType mixTable[TableSize];
-
-    int avgKeyLength = ( ::strlen(sz) - keyCount ) / keyCount;
-
-	// start with a random mixing
-    // thanks to https://github.com/tdewolff/hasher
-    for(int i=0;i<TableSize;i++) mixTable[i] = i;
-    for(int i=0;i<TableSize;i++) std::swap(mixTable[rand() % TableSize],mixTable[rand() % TableSize]);
-
-	// reset flags...
-	size_t iterations = 0;
-	do {
-        for(int i=0;i<TableSize;i++) usedCode[i] = usedKeyHash[i] = 0;
-
-		// compute the pearson hash using the current mix table.
-        TableType hash = mixTable[ sz[0] - 'a' ]; // start hash for 1st keyword
-		for( size_t i=0;sz[i];i++ )
-		{
-			if( sz[i] == '!' ) // end of key detected
-			{
-                usedKeyHash[ hash % TableSize ]++; // record hash for completed key as used
-                hash = mixTable[ sz[++i] - 'a' ]; // restart hash for next keyword or null
-			}
-			else
-			{
-				int j = (hash ^ (sz[i] - 'a')) % TableSize;
-				hash = mixTable[ j ];
-				usedCode[ j ] = 1;
-			}
-		}
-
-        // if any key-hashes have been used more than once, there is a collision
-        bool collision = false;
-        for(int i=0;i<TableSize;i++) { collision |= (usedKeyHash[i] > 1); }
-		if( !collision ) { break; }
-
-        // mark unused codes
-        for( size_t i=0;i<TableSize;i++ ) { notUsedCode[i] = usedCode[i] ? 0 : 1; }
-
-		// calc sum and swap some of the most used with some of the least used
-		int sumUsed = sum<TableType,TableSize>(usedCode);
-        int sumNotUsed = sum<TableType,TableSize>(notUsedCode);
-
-        // if all chars are used, there isnt a way we can rearrange the mixing table
-        if( sumNotUsed == 0 ) { iterations = MAXITER; break; }
-
-        for( int k=0;k<(1+avgKeyLength);k++)
-        {
-            // select which to swap
-            int i = sample<TableType>(usedCode, sumUsed);
-            int j = sample<TableType>(notUsedCode, sumNotUsed);
-
-            // disqualify items from ever being selected again and swap
-            sumUsed -= usedCode[i] + usedCode[j]; // reduce sum
-            sumNotUsed -= notUsedCode[i] + notUsedCode[j]; // reduce sum
-            usedCode[i] = notUsedCode[i] = usedCode[j] = notUsedCode[j] = 0; // clear summable values
-            std::swap(mixTable[i], mixTable[j]);
-
-            if(sumUsed < 1 || sumNotUsed < 1) break;
-        }
-
-	} while( ++iterations < MAXITER );
-
-	if( iterations < MAXITER )
-		{ printf("uint16_t mix[] = {"); for( size_t i=0;i<TableSize;i++ ) { printf("%d, ",mixTable[i]); } printf("};\n"); }
-	else
-		{ printf("ack! can't do it.\n"); }
-	
-	return iterations;
+    int hash = codeTable[ keyword[0] - 'a' ]; // char 0
+    for(uint i=1; keyword[i]; i++) { // chars 1 ... N
+        int j = (hash ^ (keyword[i] - 'a')) % codeTable.size();
+        hash = codeTable[ j ];
+    }
+    return hash;
 }
+
+///////////////////////////
+// calculation
+
+// takes an array of keywords and returns permuted code and keywords tables that construct a perfect hash
+// this version returns a packed vector of keywords where the keyword ordinal is it's hash
+template<class CodeType, uint MaxIterations>
+size_t sph_packed(const vector<string> keywords, vector<CodeType> &permutedCodes, vector<string> &permutedKeywords)
+{
+    const uint CodeCount = permutedCodes.size();
+    const uint KeywordCount = keywords.size();
+    permutedKeywords.resize(KeywordCount);
+
+    // avg keyword length is used to count code swaps in the mixing table
+    uint letterCount = 0;
+    for(uint i=0;i<KeywordCount;i++) { letterCount += keywords[i].length(); }
+    uint avgKeyLength = letterCount / KeywordCount;
+
+    // setup mixing table
+    for(uint i=0;i<CodeCount;i++) { permutedCodes[i] = max(CodeCount,KeywordCount) - i; }
+
+    // retry loop...
+    size_t iterations = 0;
+    do {
+        // randomly permute
+        for(uint i=0;i<CodeCount/2;i++) { std::swap(permutedCodes[rand() % CodeCount], permutedCodes[rand() % CodeCount]); }
+
+        // clear analysis state
+        for(uint i=0;i<KeywordCount;i++) { permutedKeywords[i].clear(); }
+
+        // hash all keywords
+        uint k;
+        for(k=0;k<KeywordCount;k++ )
+        {
+            int i = ph_lowercase<CodeType>(keywords[k].data(), permutedCodes) % KeywordCount;
+            if( !permutedKeywords[ i ].empty() ) { break; } // collision
+            permutedKeywords[ i ] = keywords[k]; // record keyword for this index
+        }
+        if(k >= KeywordCount) { break; } // all accounted for!
+
+    } while( ++iterations < MaxIterations );
+
+    return iterations;
+}
+
+// takes an array of keywords and returns permuted code and keywords tables that construct a perfect hash
+// this version also takes a sparsity coefficient that makes 'free space' in the permuted keyword table
+// the returned vector of keywords is sparse, in that some ordinals are not mapped to keyword hashes
+// this allows for some flexibility in the time-complexity of finding a suitable permuted-code-table (if it's even possible)
+template<class CodeType, uint MaxIterations>
+size_t sph_sparse(const vector<string> keywords, vector<CodeType> &permutedCodes, vector<string> &permutedKeywords, float sparsity)
+{
+    if(sparsity < 1.0) return MaxIterations; // not possible
+
+    permutedKeywords.resize(keywords.size() * sparsity);
+
+    const uint CodeCount = permutedCodes.size();
+    const uint KeywordCount = keywords.size();
+    const uint SparseKeyCount = permutedKeywords.size();
+
+    // avg keyword length is used to count code swaps in the mixing table
+    uint letterCount = 0;
+    for(uint i=0;i<KeywordCount;i++) { letterCount += keywords[i].length(); }
+    uint avgKeyLength = letterCount / KeywordCount;
+
+    // setup codetable table
+    for(uint i=0;i<CodeCount;i++) { permutedCodes[i] = max(CodeCount,KeywordCount) - i; }
+
+    // retry loop...
+    size_t iterations = 0;
+    do {
+        // randomly permute
+        for(uint i=0;i<CodeCount/2;i++) { std::swap(permutedCodes[rand() % CodeCount], permutedCodes[rand() % CodeCount]); }
+
+        // clear analysis state
+        for(uint i=0;i<SparseKeyCount;i++) { permutedKeywords[i].clear(); }
+
+        // hash all keywords
+        uint k;
+        for(k=0;k<KeywordCount;k++ )
+        {
+            int i = ph_lowercase<CodeType>(keywords[k].data(), permutedCodes) % SparseKeyCount;
+            if( !permutedKeywords[ i ].empty() ) { break; } // collision
+            permutedKeywords[ i ] = keywords[ k ]; // record keyword for this index
+        }
+        if(k >= KeywordCount) { break; } // all accounted for!
+
+    } while( ++iterations < MaxIterations );
+
+    return iterations;
+}
+
+template<class CodeType>
+void sph_dump(vector<string> permutedKeywords, vector<CodeType> permutedCodes )
+{
+    printf("char* ph_keywords[] = {");
+    for_each(permutedKeywords.begin(), permutedKeywords.end(), [] (const string s) {
+        if(s.length() > 0)
+            printf("\"%s\", ", s.data());
+        else
+            printf("0, ");
+    } );
+    printf("};\n");
+
+    printf("%s ph_mix[] = {", permutedCodes.size() > 256 ? "uint16_t" : "uint8_t");
+    for_each(permutedCodes.begin(), permutedCodes.end(), [] (const CodeType c) { printf("%u, ", c); } );
+    printf("};\n");
+}
+
+//////////////////////
+// demo code
 
 int main()
 {
-	time_t ltime;
-	time(&ltime);
-	srand((unsigned int)ltime);
+    time_t ltime;
+    time(&ltime);
+    srand((unsigned int)ltime);
 
+    using codeType = uint16_t;
+    const int codeCount = 15;
     const int keyCount = 10;
-    const int keyLength = 10;
-    const int tableSize = 35;
-    using tableType = uint8_t;
-    printf("Generating %d keys of length %d. Hashing into %d element table\n", keyCount, keyLength, tableSize);
+    const int maxIter = 10000;
+    const int trials = 5;
+    const float growthFactor = 1.2;
 
-	char buf[100000];
-	for( size_t k=0;k<10;k++)
-	{
-		size_t pos = 0;
-		for( size_t i=0;i<keyCount;i++)
-		{
-			// keys are all ascii lowsercase
-			for( size_t j=0;j<keyLength;j++) { buf[ pos++ ] = 'a' + rand() % 26; }
+    printf("Tring to hash %d keys into %d element Pearson codetable...\n", keyCount, codeCount);
 
-			// keys end with special '!' char
-			buf[ pos++ ] = '!';
-		}
-		buf[ pos ] = 0; // zero term buffer
+    for(uint t=0;t<trials;t++)
+    {
+        fflush(stdout);
 
-        printf("Finding mix table for %s:\n", buf);
-		size_t iter = calcMixTable<tableType,tableSize>( buf );
-		printf("Took %lu iterations\n",iter);
-	}
+        vector<string> keywords(keyCount);
+        vector<string> permutedKeywords(keyCount);
+        vector<codeType> permutedCodes(codeCount);
 
-	return 0;
+        // init strings to random lowercase chars
+        printf("Keywords (");
+        for_each(keywords.begin(), keywords.end(), [] (string &s) {
+            int keyLength = 3 + rand() % 5;
+            s.resize(keyLength);
+            for(uint i=0;i<keyLength;i++) { s[ i ] = 'a' + rand() % 26; }
+            cout << s << ", ";
+        } );
+        printf("). ");
+
+        uint iterations = 0;
+        printf("Looking for a packed keyword solution... ");
+        iterations = sph_packed<codeType, maxIter>(keywords, permutedCodes, permutedKeywords);
+        if (iterations < maxIter) {
+            printf("Solution after %u iterations\n",iterations);
+            sph_dump(permutedKeywords, permutedCodes);
+            continue;
+        }
+        printf("Failed. Trying comparative approaches.\n");
+
+        {
+            uint totaliter = 0;
+            printf("Adjusting codetable size... ");
+            uint newSize = codeCount * .80; // start smaller - it might help
+            for (int i = 0; i < 100; i++) {
+                permutedCodes.resize(newSize);
+                iterations = sph_packed<codeType, maxIter>(keywords, permutedCodes, permutedKeywords);
+                totaliter += iterations;
+                if (iterations < maxIter) { break; }
+                newSize *= growthFactor;
+            }
+            if (iterations < maxIter) {
+                printf("Solution in a %u element codetable after %u iterations\n", newSize, totaliter);
+                sph_dump(permutedKeywords, permutedCodes);
+            } else {
+                printf("Failure.\n");
+            }
+        }
+
+        {
+            uint totaliter = 0;
+            permutedCodes.resize(codeCount); // reset
+            printf("Trying sparse in %u element codetable... ", codeCount);
+            float sparsity = 1.1;
+            for (int i = 0; i < 100; i++) {
+                iterations = sph_sparse<codeType, maxIter>(keywords, permutedCodes, permutedKeywords, sparsity);
+                totaliter += iterations;
+                if (iterations < maxIter) { break; }
+                sparsity *= growthFactor;
+            }
+            if (iterations < maxIter) {
+                printf("Solution at sparsity %4.2f after %u iterations\n", sparsity, totaliter);
+                sph_dump(permutedKeywords, permutedCodes);
+            } else {
+                printf("Failure.\n");
+            }
+        }
+    }
+
+    return 0;
 }
