@@ -29,18 +29,6 @@ int ph_lowercase(const char *keyword, CodeType *codeTable, uint CodeCount)
     return hash;
 }
 
-// given the lowercase string, the codeTable and a char-mark-table, compute the pearson hash
-template<class CodeType>
-int ph_lowercase(const char *keyword, const vector<CodeType> codeTable)
-{
-    int hash = codeTable[ keyword[0] - 'a' ]; // char 0
-    for(uint i=1; keyword[i]; i++) { // chars 1 ... N
-        int j = (hash ^ (keyword[i] - 'a')) % codeTable.size();
-        hash = codeTable[ j ];
-    }
-    return hash;
-}
-
 ///////////////////////////
 // calculation
 
@@ -74,7 +62,7 @@ size_t sph_packed(const vector<string> keywords, vector<CodeType> &permutedCodes
         uint k;
         for(k=0;k<KeywordCount;k++ )
         {
-            int i = ph_lowercase<CodeType>(keywords[k].data(), permutedCodes) % KeywordCount;
+            int i = ph_lowercase<CodeType>(keywords[k].data(), permutedCodes.data(), permutedCodes.size()) % KeywordCount;
             if( !permutedKeywords[ i ].empty() ) { break; } // collision
             permutedKeywords[ i ] = keywords[k]; // record keyword for this index
         }
@@ -90,11 +78,9 @@ size_t sph_packed(const vector<string> keywords, vector<CodeType> &permutedCodes
 // the returned vector of keywords is sparse, in that some ordinals are not mapped to keyword hashes
 // this allows for some flexibility in the time-complexity of finding a suitable permuted-code-table (if it's even possible)
 template<class CodeType, uint MaxIterations>
-size_t sph_sparse(const vector<string> keywords, vector<CodeType> &permutedCodes, vector<string> &permutedKeywords, float sparsity)
+size_t sph_sparse(const vector<string> keywords, vector<CodeType> &permutedCodes, vector<string> &permutedKeywords, uint extra)
 {
-    if(sparsity < 1.0) return MaxIterations; // not possible
-
-    permutedKeywords.resize(keywords.size() * sparsity);
+    permutedKeywords.resize(keywords.size() +extra);
 
     const uint CodeCount = permutedCodes.size();
     const uint KeywordCount = keywords.size();
@@ -121,7 +107,7 @@ size_t sph_sparse(const vector<string> keywords, vector<CodeType> &permutedCodes
         uint k;
         for(k=0;k<KeywordCount;k++ )
         {
-            int i = ph_lowercase<CodeType>(keywords[k].data(), permutedCodes) % SparseKeyCount;
+            int i = ph_lowercase<CodeType>(keywords[k].data(), permutedCodes.data(), permutedCodes.size()) % SparseKeyCount;
             if( !permutedKeywords[ i ].empty() ) { break; } // collision
             permutedKeywords[ i ] = keywords[ k ]; // record keyword for this index
         }
@@ -198,13 +184,13 @@ int main()
         {
             uint totaliter = 0;
             printf("Adjusting codetable size... ");
-            uint newSize = codeCount * .80; // start smaller - it might help
+            uint newSize = codeCount -2; // start smaller - it might help
             for (int i = 0; i < 100; i++) {
                 permutedCodes.resize(newSize);
                 iterations = sph_packed<codeType, maxIter>(keywords, permutedCodes, permutedKeywords);
                 totaliter += iterations;
                 if (iterations < maxIter) { break; }
-                newSize *= growthFactor;
+                newSize += 1;
             }
             if (iterations < maxIter) {
                 printf("Solution in a %u element codetable after %u iterations\n", newSize, totaliter);
@@ -218,14 +204,15 @@ int main()
             uint totaliter = 0;
             permutedCodes.resize(codeCount); // reset
             printf("Trying sparse in %u element codetable... ", codeCount);
-            float sparsity = 1.1;
+            uint extra = 1;
             for (int i = 0; i < 100; i++) {
-                iterations = sph_sparse<codeType, maxIter>(keywords, permutedCodes, permutedKeywords, sparsity);
+                iterations = sph_sparse<codeType, maxIter>(keywords, permutedCodes, permutedKeywords, extra);
                 totaliter += iterations;
                 if (iterations < maxIter) { break; }
-                sparsity *= growthFactor;
+                extra += 1;
             }
             if (iterations < maxIter) {
+                float sparsity = ((float)keywords.size() + (float)extra) / (float)keywords.size();
                 printf("Solution at sparsity %4.2f after %u iterations\n", sparsity, totaliter);
                 sph_dump(permutedKeywords, permutedCodes);
             } else {
