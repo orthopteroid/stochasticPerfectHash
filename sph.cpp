@@ -34,9 +34,6 @@ uint8_t ph_hash(const char *keyword, const uint8_t keywordSize, const uint8_t *m
 // calculation
 
 // takes an array of keywords and returns permuted code and keywords tables that construct a perfect hash
-// this version also takes a sparsity coefficient that makes 'free space' in the permuted keyword table
-// the returned vector of keywords is sparse, in that some ordinals are not mapped to keyword hashes
-// this allows for some flexibility in the time-complexity of finding a suitable permuted-code-table (if it's even possible)
 template<uint MaxIterations>
 bool sph_calc(uint &iter, const vector<string> &keywords, vector<uint8_t> &charMixTable, vector<string> &permutedKeywords)
 {
@@ -63,7 +60,7 @@ bool sph_calc(uint &iter, const vector<string> &keywords, vector<uint8_t> &charM
         }
 
         // permute the character mixtable
-        for(uint i=0;i<charMixTable.size();i++) { std::swap(charMixTable[i], charMixTable[rand() % charMixTable.size()]); }
+        for(uint i=0;i<charMixTable.size()/2;i++) { std::swap(charMixTable[i], charMixTable[rand() % charMixTable.size()]); }
 
         iter++;
     } while( ++iterations < MaxIterations );
@@ -114,7 +111,7 @@ int main()
             for(uint j = keyCount * 5 / 4; j < strlen(validchars) * 2; j++) {
                 charMixTable.resize(j);
 
-                for(uint8_t c = 0; c < charMixTable.size(); c++) { charMixTable[ c ] = c; }
+                for(uint8_t c = 0; c < charMixTable.size(); c++) { charMixTable[ c ] = c + 3; }
 
                 // test some permutations of the above
                 collision = sph_calc<maxIter>(iterations, keywords, charMixTable, permutedKeywords);
