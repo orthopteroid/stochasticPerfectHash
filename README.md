@@ -1,79 +1,94 @@
 # stochasticPerfectHash
-Uses randomization to derive a Pearson mixing table for small sets of alphabetic keys. These tables might be
+Uses randomization to derive a mixing table on hashes for small sets of alphabetic keys. These tables might be
  useful for small parsers when parsing text identifiers - possibly for a communications protocol or a custom
- SAX-like xml parser.
-
-For background info see: 
-```http://cs.mwsu.edu/~griffin/courses/2133/downloads/Spring11/p677-pearson.pdf``` If this link is dead, try google.
+ SAX-like xml parser. The code illustrates this process for [Pearson hashing](http://cs.mwsu.edu/~griffin/courses/2133/downloads/Spring11/p677-pearson.pdf)
+ and [crc32 hashing](http://web.mit.edu/freebsd/head/sys/libkern/crc32.c).
 
 This is just a small demo app - it has no options or interface. If you compile and run it you will see it
- try to create mixing tables for 10 randomly generated keys - all lower case alpha - into a 15 element codetable. To
- use this code you'd likely want to built it yourself with tweaks for your specific circumstances.
-
-When run, the program generates N random keys and tries to find the keyword arrangement and character mixing
+ try to create mixing tables for 10 randomly generated keys - all lower case alpha.
+ When run, the program generates N random keys and tries to find the keyword arrangement and character mixing
  table permutation that allows
  the keywords to hash into ordinals in the keyword table.  It tries a combination of approaches:
-1. firstly, it increases the size of the character mixing table (up to some maximum). This permutes the calculation of 
- the Pearson Hash (see above mentioned paper).
+1. firstly, it proceeds to randomize the order of the mixing table (up to some maximum number of times). This permutes
+ the calculation of the key-hash, which depends upon the hashing method undern analysis (Pearson or crc32).
 2. then, it adds extra blank entries (sparsity) in the keyword table. This effectively increases the bucket-size of the
  hash table. It's assumed that increasing this table is more costly memory-wise as these might be pointers, whereas
  the mixing table is uint8s.
 
+ It uses the same mixing table approach to
+ derive keys using Pearson hashing and a crc32 hash of a keyword. The advantage of the crc32 hash would be for keyword validation
+ as the Pearson hash only give an 8 bit crc which might be unsuitable for keyword validation in mixed or noisy channels. It
+ also seems that crc32 hashing produces shorted keyword tables. 
+
 The output typically looks like:
 ```
-Keywords (sejrerj, hgphwyx, yxruywpal, mtdow, shoxax, hdvpbto, tmjpmfen, lbmos, kmrajryna, jpfeez, )
-Solution for 10 keywords using a 10 keyword table with a 17 character mix table (2831 iterations)
-uint8_t Mixtable[ 17 ] = { 13, 2, 5, 6, 12, 15, 3, 10, 1, 14, 7, 16, 9, 11, 8, 0, 4, };
-const char* Keyword[ 10 ] = { "hgphwyx", "mtdow", "sejrerj", "kmrajryna", "jpfeez", "hdvpbto", "tmjpmfen", "lbmos", "yxruywpal", "shoxax", };
-enum Key { HGPHWYX=0, MTDOW=1, SEJRERJ=2, KMRAJRYNA=3, JPFEEZ=4, HDVPBTO=5, TMJPMFEN=6, LBMOS=7, YXRUYWPAL=8, SHOXAX=9, };
+Keywords (speudvf, mpitgop, vcilh, gbmqwzu, lmwqjz, onzeytm, kzjmk, ttfuhwq, qxueu, nvzcl, )
 
-Keywords (emdskuwux, gjkisnzx, fywtfxjt, pmgval, mfkjcqrlc, frbfyidvc, ungdcv, xvzlkfytj, kvumcln, kvnhzadmg, )
-Solution for 10 keywords using a 10 keyword table with a 18 character mix table (3466 iterations)
-uint8_t Mixtable[ 18 ] = { 6, 4, 16, 3, 9, 17, 15, 10, 2, 0, 7, 13, 1, 14, 8, 11, 5, 12, };
-const char* Keyword[ 10 ] = { "kvnhzadmg", "kvumcln", "fywtfxjt", "emdskuwux", "frbfyidvc", "xvzlkfytj", "mfkjcqrlc", "gjkisnzx", "pmgval", "ungdcv", };
-enum Key { KVNHZADMG=0, KVUMCLN=1, FYWTFXJT=2, EMDSKUWUX=3, FRBFYIDVC=4, XVZLKFYTJ=5, MFKJCQRLC=6, GJKISNZX=7, PMGVAL=8, UNGDCV=9, };
+Solution for 10 keywords using a 10 keyword table with a 64 slot mix table (396 iterations)
+uint8_t Mixtable[ 64 ] = { 50, 12, 60, 40, 31, 9, 65, 5, 4, 34, 47, 10, 58, 54, 28, 63, 16, 11, 7, 45, 6, 21, 17, 35, 57, 3, 23, 56, 24, 14, 55, 42, 48, 25, 49, 26, 43, 30, 20, 13, 33, 52, 59, 8, 51, 44, 62, 64, 53, 38, 18, 22, 15, 27, 66, 61, 41, 32, 37, 36, 46, 39, 19, 29, };
+const char* Keyword[ 10 ] = { "kzjmk", "mpitgop", "lmwqjz", "nvzcl", "vcilh", "speudvf", "gbmqwzu", "onzeytm", "qxueu", "ttfuhwq", };
+const uint32_t Hash[ 10 ] = { 0x0000000A, 0x0000003D, 0x00000016, 0x00000035, 0x00000040, 0x00000005, 0x00000024, 0x00000039, 0x00000008, 0x0000001D, };
+enum Key { KZJMK=0, MPITGOP=1, LMWQJZ=2, NVZCL=3, VCILH=4, SPEUDVF=5, GBMQWZU=6, ONZEYTM=7, QXUEU=8, TTFUHWQ=9, };
 
-Keywords (arduv, ryltt, wakidnnw, cmrjlg, gwointckj, jupeln, vvjkl, unumyhsd, rtxen, pwxasmgfc, )
-Solution for 10 keywords using a 10 keyword table with a 18 character mix table (3443 iterations)
-uint8_t Mixtable[ 18 ] = { 3, 12, 0, 15, 13, 4, 16, 7, 17, 10, 14, 9, 8, 2, 11, 1, 5, 6, };
-const char* Keyword[ 10 ] = { "wakidnnw", "pwxasmgfc", "rtxen", "jupeln", "cmrjlg", "gwointckj", "arduv", "vvjkl", "unumyhsd", "ryltt", };
-enum Key { WAKIDNNW=0, PWXASMGFC=1, RTXEN=2, JUPELN=3, CMRJLG=4, GWOINTCKJ=5, ARDUV=6, VVJKL=7, UNUMYHSD=8, RYLTT=9, };
+Solution for 10 keywords using a 11 keyword table with a 64 slot mix table (207 iterations)
+uint8_t Mixtable[ 64 ] = { 15, 16, 38, 28, 41, 47, 55, 11, 53, 59, 5, 19, 23, 26, 51, 10, 43, 12, 48, 58, 40, 56, 45, 17, 24, 27, 25, 34, 7, 49, 4, 64, 22, 39, 65, 21, 66, 18, 54, 8, 20, 32, 63, 50, 61, 46, 60, 30, 36, 62, 52, 3, 42, 14, 33, 57, 44, 29, 13, 31, 6, 9, 37, 35, };
+const char* Keyword[ 11 ] = { "qxueu", "nvzcl", "mpitgop", "ttfuhwq", "vcilh", "gbmqwzu", "speudvf", "kzjmk", "lmwqjz", 0, "onzeytm", };
+const uint32_t Hash[ 11 ] = { 0xC6C406FB, 0xFDC639E0, 0xF3A8069C, 0x5ED382D1, 0x540487F1, 0x80611D5B, 0xD497C97B, 0x63311275, 0x234F5C33, 0x00000000, 0x4E8680CF, };
+enum Key { QXUEU=0, NVZCL=1, MPITGOP=2, TTFUHWQ=3, VCILH=4, GBMQWZU=5, SPEUDVF=6, KZJMK=7, LMWQJZ=8, ONZEYTM=10, };
 ```
 
 It's unusual with smaller keyword sizes and key lengths but sometimes the program can't find a combination 
- of mixtable and keyword-table size that
- perfectly hashes the keywords:
+ of mixtable and keyword-table size that perfectly hashes the keywords:
 ```
 Keywords (fuj, rhilz, crwdvmw, fyawb, qqxyxvh, rqkk, uwyt, ppf, dcv, cxgdzz, ).
 Failed.
 ```
 
-For larger sets of keywords 'holes' in the keyword-table may be apparent. These holes are for ordinals that don't
+For larger keyword lengths more 'holes' in the keyword-table may be apparent. These holes are for ordinals that don't
  map to any keyword and only serve to make a size-combination of the mixtable and keyword-table that creates a
- (close) perfect hash. In this case the code can take quite a few
- additional iterations:
+ (close) perfect hash:
 ```
-Keywords (lzugzyw, dhyykbbih, xiizproys, bxhow, wxbupgene, rgyym, iwzxnn, hiyepo, skyvfqb, dgzuoau, ycwzzl, xswvylm, fwaadqc, vkqsysmaq, ypojdl, )
-Solution for 15 keywords using a 18 keyword table with a 47 character mix table (65809 iterations)
-uint8_t Mixtable[ 47 ] = { 26, 31, 1, 35, 8, 30, 2, 13, 42, 38, 3, 28, 7, 33, 6, 46, 41, 14, 4, 34, 12, 32, 19, 43, 25, 22, 44, 11, 27, 29, 20, 16, 17, 5, 9, 39, 37, 0, 15, 23, 24, 36, 21, 40, 18, 45, 10, };
-const char* Keyword[ 18 ] = { "ypojdl", "bxhow", "dgzuoau", "iwzxnn", 0, "xiizproys", "fwaadqc", 0, "hiyepo", 0, "rgyym", "xswvylm", "ycwzzl", "lzugzyw", "vkqsysmaq", 0, 0, 0, };
-enum Key { YPOJDL=0, BXHOW=1, DGZUOAU=2, IWZXNN=3, XIIZPROYS=5, FWAADQC=6, HIYEPO=8, RGYYM=10, XSWVYLM=11, YCWZZL=12, LZUGZYW=13, VKQSYSMAQ=14, };
+Keywords (kjcwgtqvozv, rokaarnumeisc, eitxvdgxao, qkgrfojtalvrap, fyxjjdtcaof, mhxexhlrobcie, dvqvbxtygce, eeqlnetkis, vlhzprdfxa, sdsncaribxm, )
+
+Solution for 10 keywords using a 13 keyword table with a 64 slot mix table (235 iterations)
+uint8_t Mixtable[ 64 ] = { 22, 33, 45, 60, 35, 61, 25, 56, 49, 55, 47, 64, 24, 13, 23, 40, 18, 38, 9, 51, 19, 27, 46, 8, 42, 36, 58, 54, 50, 34, 37, 39, 12, 43, 29, 66, 26, 63, 14, 4, 62, 41, 16, 31, 6, 59, 32, 30, 5, 65, 3, 17, 28, 10, 7, 20, 21, 52, 11, 53, 44, 48, 15, 57, };
+const char* Keyword[ 13 ] = { "sdsncaribxm", "kjcwgtqvozv", 0, "dvqvbxtygce", "qkgrfojtalvrap", "fyxjjdtcaof", 0, "mhxexhlrobcie", "eitxvdgxao", "rokaarnumeisc", "vlhzprdfxa", 0, "eeqlnetkis", };
+const uint32_t Hash[ 13 ] = { 0x00000041, 0x0000001B, 0x00000000, 0x00000037, 0x0000002B, 0x0000002C, 0x00000000, 0x0000002E, 0x0000002F, 0x00000023, 0x00000024, 0x00000000, 0x0000000C, };
+enum Key { SDSNCARIBXM=0, KJCWGTQVOZV=1, DVQVBXTYGCE=3, QKGRFOJTALVRAP=4, FYXJJDTCAOF=5, MHXEXHLROBCIE=7, EITXVDGXAO=8, ROKAARNUMEISC=9, VLHZPRDFXA=10, EEQLNETKIS=12, };
+
+Solution for 10 keywords using a 11 keyword table with a 64 slot mix table (38 iterations)
+uint8_t Mixtable[ 64 ] = { 22, 8, 61, 23, 51, 36, 56, 65, 16, 46, 66, 44, 64, 33, 32, 34, 48, 28, 57, 38, 39, 54, 18, 14, 29, 11, 53, 31, 7, 12, 49, 4, 43, 60, 25, 50, 6, 35, 40, 3, 37, 63, 24, 41, 47, 26, 20, 30, 17, 19, 13, 10, 62, 9, 45, 21, 15, 59, 58, 52, 55, 27, 5, 42, };
+const char* Keyword[ 11 ] = { "dvqvbxtygce", "sdsncaribxm", "eitxvdgxao", "fyxjjdtcaof", "rokaarnumeisc", "qkgrfojtalvrap", "eeqlnetkis", 0, "kjcwgtqvozv", "vlhzprdfxa", "mhxexhlrobcie", };
+const uint32_t Hash[ 11 ] = { 0x2297E567, 0xFB781C79, 0x3F287EB7, 0x4529CC6C, 0x1D34F473, 0x19E27CA2, 0x509CA143, 0x00000000, 0x66B5D32A, 0x44E110EA, 0x1068251A, };
+enum Key { DVQVBXTYGCE=0, SDSNCARIBXM=1, EITXVDGXAO=2, FYXJJDTCAOF=3, ROKAARNUMEISC=4, QKGRFOJTALVRAP=5, EEQLNETKIS=6, KJCWGTQVOZV=8, VLHZPRDFXA=9, MHXEXHLROBCIE=10, };
 ```
 
-Not accounting for actual keyword validation, output from this program for a specific set of keywords and
- mixtable could be used something like:
+Output from this approach can be used to identify and validate keyword inputs using something like:
 ```
-const char* Keyword[ 10 ] = { "wakidnnw", "pwxasmgfc", "rtxen", "jupeln", "cmrjlg", "gwointckj", "arduv", "vvjkl", "unumyhsd", "ryltt", };
-enum Key { WAKIDNNW=0, PWXASMGFC=1, RTXEN=2, JUPELN=3, CMRJLG=4, GWOINTCKJ=5, ARDUV=6, VVJKL=7, UNUMYHSD=8, RYLTT=9, };
+const char* Keyword[ 11 ] = { "qxueu", "nvzcl", "mpitgop", "ttfuhwq", "vcilh", "gbmqwzu", "speudvf", "kzjmk", "lmwqjz", 0, "onzeytm", };
+enum Key { QXUEU=0, NVZCL=1, MPITGOP=2, TTFUHWQ=3, VCILH=4, GBMQWZU=5, SPEUDVF=6, KZJMK=7, LMWQJZ=8, ONZEYTM=10, };
 
-uint8_t parse_keyword(const char *keyword)
+// return ordinal of identified keyword, ~0 otherwise
+uint32_t parse_keyword(const char *keyword)
 {
-    const uint8_t Mixtable[ 18 ] = { 3, 12, 0, 15, 13, 4, 16, 7, 17, 10, 14, 9, 8, 2, 11, 1, 5, 6, };
+    uint8_t Mixtable[ 64 ] = { 15, 16, 38, 28, 41, 47, 55, 11, 53, 59, 5, 19, 23, 26, 51, 10, 43, 12, 48, 58, 40, 56,
+     45, 17, 24, 27, 25, 34, 7, 49, 4, 64, 22, 39, 65, 21, 66, 18, 54, 8, 20, 32, 63, 50, 61, 46, 60, 30, 36, 62, 52,
+      3, 42, 14, 33, 57, 44, 29, 13, 31, 6, 9, 37, 35, };
+
+    const uint32_t Hash[ 11 ] = { 0xC6C406FB, 0xFDC639E0, 0xF3A8069C, 0x5ED382D1, 0x540487F1,
+     0x80611D5B, 0xD497C97B, 0x63311275, 0x234F5C33, 0x00000000, 0x4E8680CF, };
     
-    uint8_t hash = Mixtable[ keyword[0] - 'a' ]; // char 0
-    for(uint i = 1; keyword[i]; i++) // chars 1 ... N
-        hash = Mixtable[ ( hash ^ ( keyword[i] - 'a' ) ) % 18 ]; // 18 is the size of the Mixtable
-        
-    return hash % 10; // 10 is sizeof of the Keyword-table
+    uint32_t crc = crc32(keyword);
+    
+    // now we hash the crc using the mixtable to (hopefully) derive a unique key
+    uint32_t key = ~0U;
+    key ^= mixTable[(crc >> 26) & 0b0111111];
+    key ^= mixTable[(crc >> 20) & 0b0111111];
+    key ^= mixTable[(crc >> 14) & 0b0111111];
+    key ^= mixTable[(crc >>  8) & 0b0111111];
+    key ^= mixTable[(crc >>  2) & 0b0111111]; // leftovers
+    key %= 11; // hash/keyword table size
+
+    return Hash[key] == crc ? key : ~0U;
 }
 ```
