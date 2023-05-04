@@ -20,6 +20,7 @@ using namespace std;
 // credit to http://web.mit.edu/freebsd/head/sys/libkern/crc32.c
 // credit to http://cs.mwsu.edu/~griffin/courses/2133/downloads/Spring11/p677-pearson.pdf
 
+// todo: go back to using this but in a cleaner way
 struct KeyHash {
     uint8_t key;
     uint32_t hash;
@@ -27,25 +28,19 @@ struct KeyHash {
 
 //////////////////////
 
-// Uses codetable randomization to derive a Pearson mixing table for sets of alphabetic keys
-// although simple, requires contigious ascii chars for the keywords
-const char* validchars = "abcdefghijklmnopqrstuvwxyz";
-
-// given the string and the mix table, compute the pearson hash
-KeyHash ph_hash(const uint8_t *keyword, const uint8_t *mixTable, size_t pkSize)
+// pearson-style hash with embedded 6bit mixtable
+uint32_t ph_hash(const uint8_t *keyword, const uint8_t *mixTable)
 {
-    uint8_t hash = mixTable[ keyword[0] - validchars[0] ]; // char 0
-    for(uint i = 1; keyword[i]; i++) // chars 1 ... N
-        hash = mixTable[ ( hash ^ ( keyword[i] - validchars[0] ) ) & 0b0111111 ];
-    return {key: (uint8_t)(hash % pkSize), hash: hash };
+    uint8_t hash = ~0;
+    for(uint i = 0; keyword[i]; i++)
+        hash = mixTable[ (hash ^ ( keyword[i] ^ mixTable[ i & 0b00111111 ] )) & 0b00111111 ]; // nb: keyword size limit of 256
+    return hash;
 }
 
 //////////////////////
 
-// uses crc32 poly to calculate hash and subsequently derive a key from the 64 slot mixing table
-// no alphabetic restrictions on the keywords
-
-KeyHash crc32_hash(const uint8_t *keyword, const uint8_t *mixTable, size_t pkSize)
+// crc32-style hash with mixtable post-processing
+uint32_t crc32_hash(const uint8_t *keyword, const uint8_t *mixTable)
 {
     const uint32_t crc32_tab[] = {
             0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
@@ -99,44 +94,48 @@ KeyHash crc32_hash(const uint8_t *keyword, const uint8_t *mixTable, size_t pkSiz
     crc = crc ^ ~0U;
 
     // now we hash the crc using the mixtable to (hopefully) derive a unique key
-    auto key = ~0U;
-    key ^= mixTable[(crc >> 26) & 0b0111111];
-    key ^= mixTable[(crc >> 20) & 0b0111111];
-    key ^= mixTable[(crc >> 14) & 0b0111111];
-    key ^= mixTable[(crc >>  8) & 0b0111111];
-    key ^= mixTable[(crc >>  2) & 0b0111111]; // leftovers
+    uint32_t hash = 0U;
+    hash ^= mixTable[(crc >> 26) & 0b0111111];
+    hash ^= mixTable[(crc >> 20) & 0b0111111];
+    hash ^= mixTable[(crc >> 14) & 0b0111111];
+    hash ^= mixTable[(crc >>  8) & 0b0111111];
+    hash ^= mixTable[(crc >>  2) & 0b0111111]; // leftovers
 
-    return {key: (uint8_t)(key % pkSize), hash: crc };
+    return hash;
 }
 
 ///////////////////////////
 
 // takes an array of keywords and returns permuted code and keywords tables that construct a perfect hash
 template<uint MaxIterations>
-bool sph_calc(uint &iter, const vector<string> &keywords, vector<uint8_t> &mixTable, vector<string> &permutedKeywords, vector<uint32_t> &hashes, std::function<KeyHash(const uint8_t*, const uint8_t*, size_t)> fn_hash)
+bool sph_calc(uint &iter, const vector<string> &keywords, vector<uint8_t> &mixTable, vector<string> &permutedKeywords, vector<uint32_t> &hashes, std::function<uint32_t(const uint8_t*, const uint8_t*)> fn_hash)
 {
     vector<int> index(permutedKeywords.size());
 
-    for(uint8_t c = 0; c < mixTable.size(); c++) { mixTable[ c ] = c +3; /* +3 to skip lower, less entropic values */ }
+    for( uint c = 0; c < mixTable.size(); c++ )
+        mixTable[ c ] = c;
 
     // mixtable retry loop...
     uint iterations = 0;
-    do {
-        for(uint pk=0;pk<permutedKeywords.size();pk++) { index[pk] = -1; hashes[pk] = 0; }
+    do
+    {
+        for( uint pk = 0; pk < permutedKeywords.size(); pk++ )
+            { index[pk] = -1; hashes[pk] = 0; permutedKeywords[pk].clear(); }
 
         // trial hash all keywords. check for collisions
         uint k = 0;
         for( k = 0; k < keywords.size(); k++ )
         {
-            auto kh = fn_hash((uint8_t*)keywords[k].data(), mixTable.data(), permutedKeywords.size());
-            if( index[ kh.key ] != -1 ) break; // collision
-            index[ kh.key ] = k;
-            hashes[ kh.key ] = kh.hash;
+            auto hash = fn_hash((uint8_t*)keywords[k].data(), mixTable.data());
+            uint8_t pk = (hash % permutedKeywords.size()) & 0b00111111;
+            if( index[ pk ] != -1 )
+                break; // collision
+            index[ pk ] = k;
+            hashes[ pk ] = hash;
+            permutedKeywords[ pk ] = keywords[ k ];
         }
-        if( k == keywords.size() ) { // no collisions
-            for( uint pk = 0; pk < permutedKeywords.size(); pk++ )
-                if( index[ pk ] != -1 ) permutedKeywords[ pk ] = keywords[ index[ pk ] ];
-
+        if( k == keywords.size() )
+        { // no collisions
             printf("Solution for %lu keywords using a %lu keyword table with a %lu slot mix table (%u iterations)\n", keywords.size(), permutedKeywords.size(), mixTable.size(), iterations);
 
             printf("uint8_t Mixtable[ %lu ] = { ", mixTable.size());
@@ -153,19 +152,20 @@ bool sph_calc(uint &iter, const vector<string> &keywords, vector<uint8_t> &mixTa
             printf("};\n");
 
             printf("const uint32_t Hash[ %lu ] = { ", hashes.size());
-            for_each(hashes.begin(), hashes.end(), [] (const uint32_t h) {
-                printf("0x%08X, ", h);
-            } );
+            for_each(hashes.begin(), hashes.end(), [] (const uint32_t h) { printf("0x%08X, ", h); } );
             printf("};\n");
 
             printf("enum Key { ");
-            for( uint pk = 0; pk < permutedKeywords.size(); pk++ ) {
-                if(permutedKeywords[pk].length() == 0) continue;
-                auto kh = fn_hash((uint8_t*)permutedKeywords[pk].data(), mixTable.data(), permutedKeywords.size());
-                string identifier = permutedKeywords[pk];
+            for( uint pk = 0; pk < permutedKeywords.size(); pk++ )
+            {
+                if(permutedKeywords[pk].length() == 0)
+                    continue;
+
+                auto hash = fn_hash((uint8_t*)permutedKeywords[pk].data(), mixTable.data());
+                uint8_t key = (hash % permutedKeywords.size()) & 0b00111111;
+                string identifier = permutedKeywords[ key ];
                 for_each(identifier.begin(), identifier.end(), [](string::value_type& c ) { c = toupper(c); } );
-                printf("%s=%u, ", identifier.data(), kh.key);
-                assert(pk == kh.key);
+                printf("%s=%u, ", identifier.data(), key);
             }
             printf("};\n");
 
@@ -173,7 +173,8 @@ bool sph_calc(uint &iter, const vector<string> &keywords, vector<uint8_t> &mixTa
         }
 
         // permute the character mixtable
-        for(uint i=0;i<mixTable.size()/2;i++) { std::swap(mixTable[i], mixTable[rand() % mixTable.size()]); }
+        for( uint i = 0; i < mixTable.size() / 2; i++ )
+            std::swap(mixTable[i], mixTable[rand() % mixTable.size()]);
 
         iter++;
     } while( ++iterations < MaxIterations );
@@ -186,6 +187,8 @@ bool sph_calc(uint &iter, const vector<string> &keywords, vector<uint8_t> &mixTa
 
 int main()
 {
+    const char* validchars = "abcdefghijklmnopqrstuvwxyz";
+
     time_t ltime;
     time(&ltime);
     srand((unsigned int)ltime);
@@ -195,7 +198,7 @@ int main()
     const int trials = 3;
     vector<uint8_t> mixTable(64);
 
-    for(uint t=0;t<trials;t++)
+    for( uint t = 0; t < trials; t++ )
     {
         fflush(stdout);
 
@@ -203,10 +206,12 @@ int main()
 
         // init strings to random lowercase chars
         printf("Keywords (");
-        for_each(keywords.begin(), keywords.end(), [&] (string &s) {
+        for_each(keywords.begin(), keywords.end(), [&] (string &s)
+        {
             int keyLength = 5 + rand() % 3;
             s.resize(keyLength);
-            for(uint i=0;i<keyLength;i++) { s[ i ] = validchars[ rand() % strlen(validchars) ]; }
+            for(uint i=0;i<keyLength;i++)
+                { s[ i ] = validchars[ rand() % strlen(validchars) ]; }
             cout << s << ", ";
         } );
         printf(")\n\n");
@@ -217,14 +222,16 @@ int main()
             uint iterations = 0;
             bool collision = false;
             // try progressively larger keyword table
-            for (uint i = keywords.size(); i < keywords.size() * 2; i++) {
+            for (uint i = keywords.size(); i < keywords.size() * 2; i++)
+            {
                 permutedKeywords.resize(i);
                 hashes.resize(i);
                 collision = sph_calc<maxIter>(
                         iterations, keywords, mixTable, permutedKeywords, hashes,
                         ph_hash // with pearson hash
                 );
-                if (!collision) { break; }
+                if (!collision)
+                    break;
             }
             printf("%s\n", collision ? "Failure!" : "");
         }
@@ -235,14 +242,16 @@ int main()
             uint iterations = 0;
             bool collision = false;
             // try progressively larger keyword table
-            for (uint i = keywords.size(); i < keywords.size() * 2; i++) {
+            for (uint i = keywords.size(); i < keywords.size() * 2; i++)
+            {
                 permutedKeywords.resize(i);
                 hashes.resize(i);
                 collision = sph_calc<maxIter>(
                         iterations, keywords, mixTable, permutedKeywords, hashes,
                         crc32_hash // with crc32
                 );
-                if (!collision) { break; }
+                if (!collision)
+                    break;
             }
             printf("%s\n", collision ? "Failure!" : "");
         }
