@@ -1,14 +1,15 @@
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include <math.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <cmath>
 #include <utility>
 #include <algorithm>
 #include <iostream>
 #include <cassert>
 #include <functional>
+#include <vector>
 
 using namespace std;
 
