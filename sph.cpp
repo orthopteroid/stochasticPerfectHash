@@ -13,10 +13,10 @@ using namespace std;
 
 // stochasticPerfectHash
 // orthopteroid@gmail.com
-// mixtable fixed at 64 slots, for efficiency
 
 // credit to http://web.mit.edu/freebsd/head/sys/libkern/crc32.c
 // credit to http://cs.mwsu.edu/~griffin/courses/2133/downloads/Spring11/p677-pearson.pdf
+// credit to https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 
 // todo: go back to using this but in a cleaner way
 struct KeyHash {
@@ -203,13 +203,15 @@ bool sph_solve(const uint maxIter, const vector<string> &keywords, uint &iter, v
     return true;
 }
 
-void sph_keywords_random(vector<string>& keywords, const uint minlength)
+void sph_keywords_random(vector<string>& keywords, const uint count, const uint minlength)
 {
     const char* validchars = "abcdefghijklmnopqrstuvwxyz";
     auto validstrlen = strlen(validchars);
 
     std::uniform_int_distribution<rng_type::result_type> udistLen(0, 3);
     std::uniform_int_distribution<rng_type::result_type> udistChar(0, validstrlen -1);
+
+    keywords.resize(count);
 
     for_each(keywords.begin(), keywords.end(), [&] (string &s)
     {
@@ -287,10 +289,9 @@ int main()
 
     rng.seed((unsigned int)ltime);
     mixTable.resize(32); // must be ^2 and <= 256
-    keywords.resize(20);
 
     // init strings to random lowercase chars
-    sph_keywords_random(keywords, 5 /* minlength */);
+    sph_keywords_random(keywords, 20 /* count */, 5 /* minlength */);
 
     const int maxIter = 50000;
     sph_try(maxIter,"Pearson", keywords, mixTable, sph_pearson);
