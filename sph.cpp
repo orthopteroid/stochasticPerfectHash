@@ -8,6 +8,9 @@
 #include <functional>
 #include <vector>
 #include <random>
+#include <fstream>
+#include <iterator>
+#include <sstream>
 
 using namespace std;
 
@@ -222,6 +225,16 @@ void sph_keywords_random(vector<string>& keywords, const uint count, const uint 
     } );
 }
 
+void sph_keywords_file(vector<string>& keywords, const string &fqfilename)
+{
+    ifstream ifs(fqfilename);
+    keywords.clear();
+    string line;
+    while (getline(ifs, line))
+        if(line.length() > 0)
+            keywords.emplace_back(line);
+}
+
 ///////////////////////////
 
 void sph_soln(const vector<string> &keywords, const vector<uint8_t> &mixTable, const vector<string> &permutedKeywords, const vector<uint8_t> &hashes)
@@ -280,24 +293,43 @@ void sph_try(const int maxIter, const char* szMethod, vector<string> &keywords, 
     printf("Failure!\n");
 }
 
-int main()
+int main(int argc, char **argv)
 {
-    time_t ltime;
-    time(&ltime);
+    int maxiter = 50000;
+    int mixersize = 32;
+    string keywordfile;
     vector<uint8_t> mixTable;
     vector<string> keywords;
 
+    time_t ltime;
+    time(&ltime);
     rng.seed((unsigned int)ltime);
-    mixTable.resize(32); // must be ^2 and <= 256
 
-    // init strings to random lowercase chars
-    sph_keywords_random(keywords, 20 /* count */, 5 /* minlength */);
+    vector<string> args(argv + 1, argv + argc);
+    for (auto i = args.begin(); i != args.end(); ++i) {
+        if (*i == "-h" || *i == "--help") {
+            cout << "Syntax: sph [--maxiter <number>] [--mixersize <number>] [--keywordfile <infile>]" << endl;
+            return 0;
+        } else if (*i == "--maxiter") {
+            maxiter = strtol( (++i)->c_str(), NULL, 10 );
+        } else if (*i == "--mixersize") {
+            mixersize = strtol( (++i)->c_str(), NULL, 10 );
+        } else if (*i == "--keywordfile") {
+            keywordfile = *++i;
+        }
+    }
 
-    const int maxIter = 50000;
-    sph_try(maxIter,"Pearson", keywords, mixTable, sph_pearson);
-    sph_try(maxIter,"crc32", keywords, mixTable, sph_crc32);
-    sph_try(maxIter,"fnv1a32", keywords, mixTable, sph_fnv1a32);
-    sph_try(maxIter,"fnv1a64", keywords, mixTable, sph_fnv1a64);
+    mixTable.resize(mixersize); // must be ^2 and <= 256
+
+    if (keywordfile.length() > 0)
+        sph_keywords_file(keywords, keywordfile);
+    else
+        sph_keywords_random(keywords, 20 /* count */, 5 /* minlength */);
+
+    sph_try(maxiter,"pearson", keywords, mixTable, sph_pearson);
+    sph_try(maxiter,"crc32", keywords, mixTable, sph_crc32);
+    sph_try(maxiter,"fnv1a32", keywords, mixTable, sph_fnv1a32);
+    sph_try(maxiter,"fnv1a64", keywords, mixTable, sph_fnv1a64);
 
     return 0;
 }
