@@ -9,20 +9,29 @@ This is a small app that can run as a demo with randomly generated keywords or b
  try to create mixing tables for randomly generated keys - all lower case alpha.
  When run, the program generates N random keys and tries to find the keyword arrangement and character mixing
  table permutation that allows
- the keywords to hash into ordinals in the keyword table.  It tries a combination of approaches:
+ the keywords to hash into ordinals in the keyword table.
+
+**Approach** It tries a combination of approaches:
 1. firstly, it proceeds to randomize the order of the mixing table (up to some maximum number of times). This permutes
  the calculation of the key-hash, which depends upon the hashing method under analysis (pearson, crc32, fnv1a32 or fnv1a64).
 2. then, it adds extra blank entries (sparsity) in the keyword table. This effectively increases the bucket-size of the
  hash table. It's assumed that increasing this table is more costly memory-wise as these might be pointers, whereas
  the mixing table is uint8s.
 
- The pearson table approach looks up keyword characters in the mixing table to compute a hash (and subsequently using
+ **Secondary Hash** The pearson table approach looks up keyword characters in the mixing table to compute a hash (and subsequently using
  mod to determine a unique keyword index) whereas the crc32 method
- computes the crc32 hash of a keyword and then gobbles the bits of the crc to create a secondary hash (to which mod is
- used to determine the unique keyword index). For both methods only the final (8 bit) hash is stored, it's probably not
- even necessary to keep unless you want to do some kind of keyword hash validation (in which case there may be other
- problems with the current approach). The fnv1a hashes use the same approach as the crc32 method to determine a keyword index.
+ computes the crc32 hash of a keyword and then gobbles the bits of the crc to create a secondary hash (to which a mask or mod is
+ used to determine the unique keyword index). The fnv1a hashes use the same approach as the crc32 method to determine a keyword
+ index. Other hashes could be added.
 
+ **UTF-8** This approach has been applied to strings made from 8-bit letters. To hash variable-length
+character encodings (like utf8) with the Pearson would require the mixtable to be the
+full 256 entries. Alternatively, hashing the utf-8 string with crc32 (or the other longer hashes) and
+bit-gobbling the hash through the mix-table might be effective.
+
+ **Validation** The sample code saves pre-masked 8bit hash which could be used for keyword validation if it wasn't so short - if you want to
+ do that, use a 32bit hash method and store the hash to validate the keyword after lookup.
+ 
 The output typically looks like:
 ```
 pearson solution for 10 keywords using a 10 keyword table (1042 iterations)
@@ -60,28 +69,47 @@ uint8_t Mixtable[ 32 ] = { 0x72, 0x13, 0x3A, 0xC6, 0x03, 0x3E, 0xBD, 0x9A, 0xFC,
 
 Here are several solutions using different hashes on lua's 21 keywords:
 ```
-pearson solution for 21 keywords using a 25 keyword table (1841 iterations)
-const char* Keyword[ 25 ] = { "while", "and", 0, "else", "not", "function", "false", "for", "do", "return", "true", 0, "local", 0, "repeat", "break", "or", "in", "if", 0, "elseif", "then", "until", "end", "nil", };
-enum Key { WHILE=0, AND=1, ELSE=3, NOT=4, FUNCTION=5, FALSE=6, FOR=7, DO=8, RETURN=9, TRUE=10, LOCAL=12, REPEAT=14, BREAK=15, OR=16, IN=17, IF=18, ELSEIF=20, THEN=21, UNTIL=22, END=23, NIL=24, };
-const uint8_t Hash[ 25 ] = { 0xC8, 0xE2, 0x00, 0xFD, 0x04, 0xCD, 0x06, 0x84, 0x08, 0xB8, 0xD2, 0x00, 0x57, 0x00, 0x27, 0xD7, 0x42, 0xD9, 0xA8, 0x00, 0xAA, 0x15, 0x93, 0xDF, 0x63, };
-uint8_t Mixtable[ 32 ] = { 0xE1, 0x3D, 0x57, 0xF5, 0x97, 0x00, 0xC6, 0x24, 0x71, 0x91, 0x11, 0x9F, 0xBA, 0x4C, 0xB7, 0x60, 0x14, 0x92, 0xDD, 0xB8, 0x2C, 0xDC, 0x76, 0x6D, 0x9C, 0x15, 0x85, 0xFB, 0x5B, 0x13, 0xB5, 0x6B, };
+pearson solution for 21 keywords using a 32 keyword table (8628 iterations)
+const char* Keyword[ 32 ] = { "repeat", "return", 0, 0, "if", "while", "for", "elseif", "nil", "in", 0, "or", 0, 0, "function", "local", "break", "do", 0, 0, 0, "false", "then", "true", 0, 0, "until", "and", "else", "not", 0, "end", };
+enum Key { REPEAT=0, RETURN=1, IF=4, WHILE=5, FOR=6, ELSEIF=7, NIL=8, IN=9, OR=11, FUNCTION=14, LOCAL=15, BREAK=16, DO=17, FALSE=21, THEN=22, TRUE=23, UNTIL=26, AND=27, ELSE=28, NOT=29, END=31, };
+const uint8_t Hash[ 32 ] = { 0x00, 0x61, 0x00, 0x00, 0x64, 0x05, 0x46, 0x87, 0xE8, 0xE9, 0x00, 0xEB, 0x00, 0x00, 0x8E, 0x4F, 0x30, 0xF1, 0x00, 0x00, 0x00, 0x55, 0xB6, 0x97, 0x00, 0x00, 0xBA, 0x1B, 0x1C, 0x5D, 0x00, 0xFF, };
+uint8_t Mixtable[ 32 ] = { 0x0C, 0x08, 0x1D, 0x7A, 0xCC, 0xEC, 0xAD, 0x58, 0xC5, 0x36, 0x37, 0xE0, 0x01, 0x69, 0x20, 0xC2, 0x61, 0xF9, 0xD6, 0xE2, 0x40, 0x12, 0xF8, 0xE4, 0x8F, 0x49, 0x0E, 0xB1, 0x4F, 0x70, 0x3A, 0x84, };
 
-crc32 solution for 21 keywords using a 28 keyword table (8457 iterations)
-const char* Keyword[ 28 ] = { 0, "true", 0, "false", 0, "while", "if", "repeat", "end", "until", 0, "function", "break", "return", "do", "elseif", "not", 0, 0, "nil", "for", "then", "or", "else", 0, "and", "in", "local", };
-enum Key { TRUE=1, FALSE=3, WHILE=5, IF=6, REPEAT=7, END=8, UNTIL=9, FUNCTION=11, BREAK=12, RETURN=13, DO=14, ELSEIF=15, NOT=16, NIL=19, FOR=20, THEN=21, OR=22, ELSE=23, AND=25, IN=26, LOCAL=27, };
-const uint8_t Hash[ 28 ] = { 0x00, 0x01, 0x00, 0xAB, 0x00, 0x21, 0xAE, 0x3F, 0x5C, 0x79, 0x00, 0x43, 0xB4, 0x29, 0x9A, 0x9B, 0x48, 0x00, 0x00, 0x2F, 0x68, 0xD9, 0x32, 0x17, 0x00, 0x89, 0x1A, 0x1B, };
-uint8_t Mixtable[ 32 ] = { 0xD0, 0x0B, 0x94, 0x14, 0xA6, 0x65, 0xBB, 0xB8, 0x77, 0x46, 0x2D, 0xBC, 0x9B, 0x3E, 0xA1, 0x27, 0xDC, 0x8D, 0xF1, 0x9A, 0x6D, 0x04, 0x8C, 0xBF, 0xE2, 0xBD, 0x83, 0x9E, 0x78, 0x8F, 0xCF, 0x3A, };
+crc32 solution for 21 keywords using a 32 keyword table (2615 iterations)
+const char* Keyword[ 32 ] = { 0, "function", 0, "false", "return", "if", 0, "for", 0, "while", "end", "local", "and", "else", "repeat", 0, "elseif", "do", "break", 0, 0, "in", "nil", 0, "not", "until", 0, "true", 0, "or", 0, "then", };
+enum Key { FUNCTION=1, FALSE=3, RETURN=4, IF=5, FOR=7, WHILE=9, END=10, LOCAL=11, AND=12, ELSE=13, REPEAT=14, ELSEIF=16, DO=17, BREAK=18, IN=21, NIL=22, NOT=24, UNTIL=25, TRUE=27, OR=29, THEN=31, };
+const uint8_t Hash[ 32 ] = { 0x00, 0xA1, 0x00, 0x03, 0x04, 0x85, 0x00, 0x27, 0x00, 0xE9, 0x2A, 0x8B, 0xCC, 0xCD, 0xAE, 0x00, 0xF0, 0xF1, 0x12, 0x00, 0x00, 0xD5, 0xD6, 0x00, 0x78, 0x19, 0x00, 0x3B, 0x00, 0xBD, 0x00, 0xBF, };
+uint8_t Mixtable[ 32 ] = { 0x52, 0x61, 0xC3, 0x93, 0xA2, 0x56, 0xC0, 0x73, 0x23, 0x51, 0xB0, 0x0E, 0xA3, 0xD0, 0x6A, 0x7F, 0x57, 0x13, 0x92, 0xFC, 0x5A, 0xF9, 0x78, 0x9E, 0xB8, 0x4F, 0x83, 0x30, 0xCC, 0x5D, 0xEF, 0x71, };
 
-fnv1a32 solution for 21 keywords using a 26 keyword table (13692 iterations)
-const char* Keyword[ 26 ] = { "end", "nil", 0, "false", 0, 0, "if", "elseif", "not", "for", "return", "local", "then", "else", "and", "or", "do", "function", "in", 0, "until", "true", "break", "repeat", "while", 0, };
-enum Key { END=0, NIL=1, FALSE=3, IF=6, ELSEIF=7, NOT=8, FOR=9, RETURN=10, LOCAL=11, THEN=12, ELSE=13, AND=14, OR=15, DO=16, FUNCTION=17, IN=18, UNTIL=20, TRUE=21, BREAK=22, REPEAT=23, WHILE=24, };
-const uint8_t Hash[ 26 ] = { 0xB6, 0xEB, 0x00, 0xB9, 0x00, 0x00, 0xA2, 0x21, 0xA4, 0x8B, 0xDA, 0x73, 0x74, 0x41, 0xC4, 0x77, 0x10, 0x93, 0xE2, 0x00, 0xFE, 0xCB, 0xCC, 0x7F, 0xB4, 0x00, };
-uint8_t Mixtable[ 32 ] = { 0xC6, 0x5B, 0xBA, 0x3F, 0xAB, 0x2D, 0x94, 0x73, 0xBE, 0xAD, 0x45, 0x2E, 0xE8, 0x4C, 0x1B, 0x92, 0x4D, 0x25, 0xFF, 0x8F, 0xBD, 0x1E, 0x59, 0xE4, 0x44, 0x17, 0x11, 0xBB, 0x02, 0x46, 0x86, 0x54, };
+fnv1a32 solution for 21 keywords using a 32 keyword table (16500 iterations)
+const char* Keyword[ 32 ] = { 0, "or", "if", "function", "and", 0, "true", "then", "elseif", "until", 0, 0, "not", "in", "else", 0, "nil", 0, "while", "do", "repeat", "break", "end", 0, 0, "false", 0, 0, 0, "return", "for", "local", };
+enum Key { OR=1, IF=2, FUNCTION=3, AND=4, TRUE=6, THEN=7, ELSEIF=8, UNTIL=9, NOT=12, IN=13, ELSE=14, NIL=16, WHILE=18, DO=19, REPEAT=20, BREAK=21, END=22, FALSE=25, RETURN=29, FOR=30, LOCAL=31, };
+const uint8_t Hash[ 32 ] = { 0x00, 0x61, 0x22, 0x03, 0xA4, 0x00, 0x06, 0x07, 0x08, 0x69, 0x00, 0x00, 0x2C, 0x8D, 0x6E, 0x00, 0x70, 0x00, 0xD2, 0x93, 0xB4, 0xB5, 0x96, 0x00, 0x00, 0x19, 0x00, 0x00, 0x00, 0xBD, 0x5E, 0x5F, };
+uint8_t Mixtable[ 32 ] = { 0xC8, 0x6C, 0x1F, 0xB5, 0x74, 0x3D, 0x19, 0xC6, 0xDE, 0xA4, 0x3B, 0xFC, 0xFD, 0x33, 0x8A, 0x00, 0x9C, 0x98, 0xEA, 0xEB, 0x5E, 0xE6, 0x4D, 0x40, 0xA9, 0xD0, 0x3E, 0x4E, 0x9E, 0x54, 0xAA, 0xEE, };
 
-fnv1a64 solution for 21 keywords using a 27 keyword table (15047 iterations)
-const char* Keyword[ 27 ] = { "while", "end", "nil", "function", 0, "repeat", 0, "in", "true", "if", "and", "local", 0, "until", "for", "not", 0, "else", "or", "false", 0, "break", "elseif", "then", "return", "do", 0, };
-enum Key { WHILE=0, END=1, NIL=2, FUNCTION=3, REPEAT=5, IN=7, TRUE=8, IF=9, AND=10, LOCAL=11, UNTIL=13, FOR=14, NOT=15, ELSE=17, OR=18, FALSE=19, BREAK=21, ELSEIF=22, THEN=23, RETURN=24, DO=25, };
-const uint8_t Hash[ 27 ] = { 0x1B, 0x52, 0x89, 0xC0, 0x00, 0xF8, 0x00, 0x58, 0x23, 0x24, 0x91, 0x5C, 0x00, 0x94, 0x44, 0x2A, 0x00, 0xCE, 0x12, 0x64, 0x00, 0x30, 0x4C, 0xEF, 0x33, 0x4F, 0x00, };
-uint8_t Mixtable[ 32 ] = { 0xC7, 0xDF, 0x87, 0x48, 0xB4, 0xA4, 0x47, 0xBE, 0xFF, 0xF6, 0x80, 0x4F, 0x13, 0xAF, 0x39, 0x4D, 0xB6, 0xFD, 0x5C, 0xF3, 0xAB, 0x2A, 0x21, 0xCA, 0x12, 0x3C, 0x65, 0x95, 0x77, 0xE2, 0x91, 0x45, };
+fnv1a64 solution for 21 keywords using a 32 keyword table (8285 iterations)
+const char* Keyword[ 32 ] = { 0, "end", 0, 0, "local", "while", 0, 0, "and", "if", 0, "do", "false", "true", "or", "then", "not", 0, "in", "else", 0, 0, "repeat", "for", "return", "function", 0, "break", 0, "elseif", "nil", "until", };
+enum Key { END=1, LOCAL=4, WHILE=5, AND=8, IF=9, DO=11, FALSE=12, TRUE=13, OR=14, THEN=15, NOT=16, IN=18, ELSE=19, REPEAT=22, FOR=23, RETURN=24, FUNCTION=25, BREAK=27, ELSEIF=29, NIL=30, UNTIL=31, };
+const uint8_t Hash[ 32 ] = { 0x00, 0xC1, 0x00, 0x00, 0xA4, 0x85, 0x00, 0x00, 0x68, 0xA9, 0x00, 0x8B, 0xEC, 0x2D, 0x4E, 0x0F, 0x10, 0x00, 0xD2, 0x33, 0x00, 0x00, 0x96, 0x17, 0xB8, 0x59, 0x00, 0x5B, 0x00, 0x3D, 0xBE, 0xDF, };
+uint8_t Mixtable[ 32 ] = { 0x5F, 0xBC, 0x1E, 0x40, 0x94, 0x73, 0x00, 0xF3, 0x90, 0x95, 0xB2, 0x79, 0x78, 0x28, 0x32, 0x18, 0x03, 0x9E, 0x9D, 0x01, 0xA6, 0x6D, 0x4B, 0x8D, 0x52, 0xCA, 0x15, 0x17, 0xBF, 0x14, 0x25, 0x19, };
 ```
 
+You can use the output of this program to make a fast scanner:
+
+```
+const char* Keyword[ 32 ] = { "repeat", "return", 0, 0, "if", "while", "for", "elseif", "nil", "in", 0, "or", 0, 0, "function", "local", "break", "do", 0, 0, 0, "false", "then", "true", 0, 0, "until", "and", "else", "not", 0, "end", };
+enum Key { REPEAT=0, RETURN=1, IF=4, WHILE=5, FOR=6, ELSEIF=7, NIL=8, IN=9, OR=11, FUNCTION=14, LOCAL=15, BREAK=16, DO=17, FALSE=21, THEN=22, TRUE=23, UNTIL=26, AND=27, ELSE=28, NOT=29, END=31, };
+const uint8_t Hash[ 32 ] = { 0x00, 0x61, 0x00, 0x00, 0x64, 0x05, 0x46, 0x87, 0xE8, 0xE9, 0x00, 0xEB, 0x00, 0x00, 0x8E, 0x4F, 0x30, 0xF1, 0x00, 0x00, 0x00, 0x55, 0xB6, 0x97, 0x00, 0x00, 0xBA, 0x1B, 0x1C, 0x5D, 0x00, 0xFF, };
+
+uint8_t parse_keyword(const char *keyword)
+{
+  const uint8_t Mixtable[ 32 ] = { 0x0C, 0x08, 0x1D, 0x7A, 0xCC, 0xEC, 0xAD, 0x58, 0xC5, 0x36, 0x37, 0xE0, 0x01, 0x69, 0x20, 0xC2, 0x61, 0xF9, 0xD6, 0xE2, 0x40, 0x12, 0xF8, 0xE4, 0x8F, 0x49, 0x0E, 0xB1, 0x4F, 0x70, 0x3A, 0x84, };
+  const uint8_t bitmask = 0b00011111;
+
+  uint8_t hash = Mixtable[ Keyword[0] & bitmask ];
+  for(uint i = 1; keyword[i]; i++)
+    hash ^= Mixtable[ Keyword[i] & bitmask ];
+        
+  return hash & bitmask;
+}
+```

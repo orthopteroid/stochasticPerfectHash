@@ -28,7 +28,11 @@ struct KeyHash {
 
 typedef std::function<KeyHash(const string &, const vector<uint8_t>&, const size_t)> fnHash;
 typedef std::mt19937 rng_type;
-rng_type rng;
+static rng_type rng;
+
+static int maxiter = 50000;
+static int mixersize = 32;
+static int permutesize = -1;
 
 //////////////////////
 
@@ -167,7 +171,7 @@ KeyHash sph_fnv1a64(const string & keyword, const vector<uint8_t> & mixTable, co
 ///////////////////////////
 
 // takes an array of keywords and returns permuted code and keywords tables that construct a perfect hash
-bool sph_solve(const uint maxIter, const vector<string> &keywords, uint &iter, vector<uint8_t> &mixTable, vector<string> &permutedKeywords, vector<uint8_t> &hashes, fnHash fn_hash)
+bool sph_solve(const vector<string> &keywords, uint &iter, vector<uint8_t> &mixTable, vector<string> &permutedKeywords, vector<uint8_t> &hashes, fnHash fn_hash)
 {
     vector<uint8_t> srcTable( 256);
     for( uint c = 0; c < 256; c++ )
@@ -177,7 +181,7 @@ bool sph_solve(const uint maxIter, const vector<string> &keywords, uint &iter, v
 
     // mixtable retry loop...
     iter = 0;
-    while(iter < maxIter )
+    while(iter < maxiter )
     {
         // permute the srcTable and build mixtable and clear the hash stats
         for( uint i = 0; i < srcTable.size(); i++ )
@@ -270,19 +274,28 @@ void sph_soln(const vector<string> &keywords, const vector<uint8_t> &mixTable, c
 
 //////////////////////
 
-void sph_try(const int maxIter, const char* szMethod, vector<string> &keywords, vector<uint8_t> &mixTable, fnHash fn_hash)
+void sph_try(const char* szMethod, vector<string> &keywords, vector<uint8_t> &mixTable, fnHash fn_hash)
 {
     vector<string> permutedKeywords(keywords.size());
     vector<uint8_t> hashes(keywords.size());
     uint iterations = 0;
     bool collision = false;
 
+    if (permutesize > -1)
+    {
+        permutedKeywords.resize(permutesize);
+        hashes.resize(permutesize);
+    }
+
     for(uint i = keywords.size(); i < keywords.size() * 2; i++)
     {
-        // if there are collisions, try a progressively larger keyword table
-        permutedKeywords.resize(i);
-        hashes.resize(i);
-        collision = sph_solve(maxIter, keywords, iterations, mixTable, permutedKeywords, hashes, fn_hash);
+        if (permutesize == -1)
+        {
+            // if there are collisions, try a progressively larger keyword table
+            permutedKeywords.resize(i);
+            hashes.resize(i);
+        }
+        collision = sph_solve(keywords, iterations, mixTable, permutedKeywords, hashes, fn_hash);
         if (!collision)
         {
             printf("%s solution for %lu keywords using a %lu keyword table (%u iterations)\n", szMethod, keywords.size(), permutedKeywords.size(), iterations);
@@ -295,8 +308,6 @@ void sph_try(const int maxIter, const char* szMethod, vector<string> &keywords, 
 
 int main(int argc, char **argv)
 {
-    int maxiter = 50000;
-    int mixersize = 32;
     string keywordfile;
     vector<uint8_t> mixTable;
     vector<string> keywords;
@@ -308,12 +319,14 @@ int main(int argc, char **argv)
     vector<string> args(argv + 1, argv + argc);
     for (auto i = args.begin(); i != args.end(); ++i) {
         if (*i == "-h" || *i == "--help") {
-            cout << "Syntax: sph [--maxiter <number>] [--mixersize <number>] [--keywordfile <infile>]" << endl;
+            cout << "Syntax: sph [--maxiter <number>] [--mixersize <number>] [--permutesize <number>] [--keywordfile <infile>]" << endl;
             return 0;
         } else if (*i == "--maxiter") {
             maxiter = strtol( (++i)->c_str(), NULL, 10 );
         } else if (*i == "--mixersize") {
             mixersize = strtol( (++i)->c_str(), NULL, 10 );
+        } else if (*i == "--permutesize") {
+            permutesize = strtol( (++i)->c_str(), NULL, 10 );
         } else if (*i == "--keywordfile") {
             keywordfile = *++i;
         }
@@ -326,10 +339,10 @@ int main(int argc, char **argv)
     else
         sph_keywords_random(keywords, 20 /* count */, 5 /* minlength */);
 
-    sph_try(maxiter,"pearson", keywords, mixTable, sph_pearson);
-    sph_try(maxiter,"crc32", keywords, mixTable, sph_crc32);
-    sph_try(maxiter,"fnv1a32", keywords, mixTable, sph_fnv1a32);
-    sph_try(maxiter,"fnv1a64", keywords, mixTable, sph_fnv1a64);
+    sph_try("pearson", keywords, mixTable, sph_pearson);
+    sph_try("crc32", keywords, mixTable, sph_crc32);
+    sph_try("fnv1a32", keywords, mixTable, sph_fnv1a32);
+    sph_try("fnv1a64", keywords, mixTable, sph_fnv1a64);
 
     return 0;
 }
